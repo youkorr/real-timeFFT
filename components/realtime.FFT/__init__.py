@@ -1,37 +1,15 @@
-# External Components Initialization
-# This module provides initialization and configuration for external FFT components
+import esphome.codegen as cg
+import esphome.config_validation as cv
+from esphome.components import sensor
+from esphome.const import CONF_ID
 
-class RealtimeFFTComponent:
-    """
-    Base class for Realtime FFT processing and visualization
-    """
-    def __init__(self, sample_rate=44100, fft_size=1024):
-        self.sample_rate = sample_rate
-        self.fft_size = fft_size
-        self.frequency_bins = None
-        self.spectrum_data = None
+realtime_fft_ns = cg.esphome_ns.namespace('realtime_fft')
+RealtimeFFT = realtime_fft_ns.class_('RealtimeFFT', cg.Component)
 
-    def initialize(self):
-        """
-        Initialize FFT processing components
-        """
-        raise NotImplementedError("Subclasses must implement initialization")
+CONFIG_SCHEMA = cv.Schema({
+    cv.GenerateID(): cv.declare_id(RealtimeFFT),
+}).extend(cv.COMPONENT_SCHEMA)
 
-    def process_audio(self, audio_data):
-        """
-        Process audio data and perform FFT
-        """
-        raise NotImplementedError("Subclasses must implement audio processing")
-
-    def get_frequency_spectrum(self):
-        """
-        Retrieve processed frequency spectrum
-        """
-        return self.spectrum_data
-
-    @staticmethod
-    def calculate_frequency_range(sample_rate, fft_size):
-        """
-        Calculate frequency bins for FFT analysis
-        """
-        return [k * sample_rate / fft_size for k in range(fft_size // 2)]
+async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
