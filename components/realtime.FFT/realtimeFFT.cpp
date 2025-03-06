@@ -2,50 +2,57 @@
 #include <algorithm>
 #include <numeric>
 
-RealtimeFFT::RealtimeFFT(int fftSize) : 
-    m_fftSize(fftSize),
-    m_complexBuffer(fftSize),
-    m_magnitudeSpectrum(fftSize / 2) {}
-
 void RealtimeFFT::setup() {
-    // Initialize FFT
-    id(fft_status).update_state("FFT Initialized");
+    complexBuffer.resize(FFT_SIZE);
+    magnitudeSpectrum.resize(FFT_SIZE / 2);
 }
 
 void RealtimeFFT::loop() {
-    if (id(page_realtime).is_active()) {
-        update_lvgl_chart();
+    if (chart_ && lv_obj_is_visible(chart_)) {
+        update_chart();
+        update_sensor();
     }
 }
 
 void RealtimeFFT::processAudioData(const std::vector<float>& audioInput) {
-    if (audioInput.size() != m_fftSize) {
+    if (audioInput.size() != FFT_SIZE) {
         ESP_LOGE("FFT", "Input size mismatch");
         return;
     }
 
     // Process FFT
-    for (int i = 0; i < m_fftSize; ++i) {
-        m_complexBuffer[i] = std::complex<float>(audioInput[i], 0.0f);
+    for (int i = 0; i < FFT_SIZE; ++i) {
+        complexBuffer[i] = std::complex<float>(audioInput[i], 0.0f);
     }
 
-    cooleyTukeyFFT(m_complexBuffer);
+    cooleyTukeyFFT(complexBuffer);
 
-    for (int k = 0; k < m_fftSize / 2; ++k) {
-        m_magnitudeSpectrum[k] = std::abs(m_complexBuffer[k]);
+    for (int k = 0; k < FFT_SIZE / 2; ++k) {
+        magnitudeSpectrum[k] = std::abs(complexBuffer[k]);
     }
 }
 
-void RealtimeFFT::update_lvgl_chart() {
-    auto chart = id(fft_chart).get_chart();
-    auto series = id(fft_series).get_series();
+void RealtimeFFT::update_chart() {
+    if (!chart_) return;
 
-    if (chart && series) {
-        for (size_t i = 0; i < m_magnitudeSpectrum.size(); i++) {
-            lv_chart_set_next_value(chart, series, m_magnitudeSpectrum[i]);
+    auto series = lv_chart_get_series_next(chart_, nullptr);
+    if (series) {
+        for (size_t i = 0; i < magnitudeSpectrum.size(); i++) {
+            lv_chart_set_next_value(chart_, series, magnitudeSpectrum[i]);
         }
-        lv_chart_refresh(chart);
+        lv_chart_refresh(chart_);
     }
+}
+
+void RealtimeFFT::update_sensor() {
+    if (!parent_) return;
+
+    // Calculate average magnitude
+    float sum = std::accumulate(magnitudeSpectrum.begin(), magnitudeSpectrum.end(), 0.0f);
+    float average = sum / magnitudeSpectrum.size();
+
+    // Publish sensor value
+    parent_->publish_state(average);
 }
 
 // Rest of the FFT implementation remains the same...
