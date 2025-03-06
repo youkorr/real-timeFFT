@@ -8,7 +8,7 @@
 #include "esphome/components/lvgl/lvgl.h"
 #include "esphome/components/sensor/sensor.h"
 
-class RealtimeFFT : public Component, public Parented<Sensor> {
+class RealtimeFFTSensor : public sensor::Sensor, public Component {
 public:
     void setup() override;
     void loop() override;
