@@ -2,19 +2,19 @@
 #include <algorithm>
 #include <numeric>
 
-void RealtimeFFT::setup() {
+void RealtimeFFTSensor::setup() {
     complexBuffer.resize(FFT_SIZE);
     magnitudeSpectrum.resize(FFT_SIZE / 2);
 }
 
-void RealtimeFFT::loop() {
+void RealtimeFFTSensor::loop() {
     if (chart_ && lv_obj_is_visible(chart_)) {
         update_chart();
         update_sensor();
     }
 }
 
-void RealtimeFFT::processAudioData(const std::vector<float>& audioInput) {
+void RealtimeFFTSensor::processAudioData(const std::vector<float>& audioInput) {
     if (audioInput.size() != FFT_SIZE) {
         ESP_LOGE("FFT", "Input size mismatch");
         return;
@@ -32,7 +32,7 @@ void RealtimeFFT::processAudioData(const std::vector<float>& audioInput) {
     }
 }
 
-void RealtimeFFT::update_chart() {
+void RealtimeFFTSensor::update_chart() {
     if (!chart_) return;
 
     auto series = lv_chart_get_series_next(chart_, nullptr);
@@ -44,15 +44,14 @@ void RealtimeFFT::update_chart() {
     }
 }
 
-void RealtimeFFT::update_sensor() {
-    if (!parent_) return;
-
+void RealtimeFFTSensor::update_sensor() {
     // Calculate average magnitude
     float sum = std::accumulate(magnitudeSpectrum.begin(), magnitudeSpectrum.end(), 0.0f);
     float average = sum / magnitudeSpectrum.size();
 
     // Publish sensor value
-    parent_->publish_state(average);
+    publish_state(average);
 }
 
 // Rest of the FFT implementation remains the same...
+
