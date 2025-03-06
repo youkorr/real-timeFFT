@@ -3,16 +3,14 @@ import esphome.config_validation as cv
 from esphome.components import sensor
 from esphome.const import CONF_ID
 
-DEPENDENCIES = ['sensor']
-
 realtime_fft_ns = cg.esphome_ns.namespace('realtime_fft')
-RealtimeFFT = realtime_fft_ns.class_('RealtimeFFT', cg.Component, sensor.Sensor)
+RealtimeFFTSensor = realtime_fft_ns.class_('RealtimeFFTSensor', sensor.Sensor, cg.Component)
 
 CONFIG_SCHEMA = sensor.SENSOR_SCHEMA.extend({
-    cv.GenerateID(): cv.declare_id(RealtimeFFT),
+    cv.GenerateID(): cv.declare_id(RealtimeFFTSensor),
 }).extend(cv.COMPONENT_SCHEMA)
 
-async def to_code(config):
+def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
-    await cg.register_component(var, config)
-    await sensor.register_sensor(var, config)
+    yield cg.register_component(var, config)
+    yield sensor.register_sensor(var, config)
