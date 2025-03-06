@@ -4,9 +4,9 @@
 #include <vector>
 #include <complex>
 #include <cmath>
-#include "esphome.h"  // Intégration ESPHome
+#include "esphome.h"
 
-class RealtimeFFT : public esphome::Component {
+class RealtimeFFT : public Component, public Sensor {
 public:
     RealtimeFFT(int fftSize = 1024);
     
@@ -15,11 +15,11 @@ public:
     std::vector<float> getFrequencyBins() const;
     std::vector<float> findPeakFrequencies(int numPeaks = 5) const;
     
-    void update_lvgl_chart(); // Fonction pour LVGL
+    void update_lvgl_chart();
 
 protected:
-    void setup() override {}  // Initialisation ESPHome
-    void loop() override {}   // Mise à jour ESPHome
+    void setup() override;
+    void loop() override;
 
 private:
     int m_fftSize;
@@ -31,4 +31,4 @@ private:
     void bitReversalPermutation(std::vector<std::complex<float>>& data);
 };
 
-#endif // REALTIME_FFT_H
+#endif
