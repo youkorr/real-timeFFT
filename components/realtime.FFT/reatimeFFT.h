@@ -2,6 +2,7 @@
 
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/i2s_audio/i2s_audio.h"
 #include "arduinoFFT.h"
 
 namespace esphome {
@@ -14,7 +15,7 @@ class RealtimeFFTComponent : public Component, public sensor::Sensor {
   
   void set_sample_rate(int sample_rate) { this->sample_rate_ = sample_rate; }
   void set_fft_size(int fft_size) { this->fft_size_ = fft_size; }
-  void set_audio_pin(int audio_pin) { this->audio_pin_ = audio_pin; }
+  void set_i2s_audio_id(i2s_audio::I2SAudioComponent *i2s_audio) { this->i2s_audio_ = i2s_audio; }
   
   // Méthodes pour accéder aux données FFT
   float get_fft_value(int bin);
@@ -26,7 +27,11 @@ class RealtimeFFTComponent : public Component, public sensor::Sensor {
  protected:
   int sample_rate_{44100};
   int fft_size_{1024};
-  int audio_pin_{};
+  i2s_audio::I2SAudioComponent *i2s_audio_{nullptr};
+  
+  // Buffer pour les données audio
+  int16_t *audio_buffer_{nullptr};
+  size_t buffer_size_{0};
   
   // Tableaux pour le calcul FFT
   double *real_values_{nullptr};
