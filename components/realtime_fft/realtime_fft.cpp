@@ -15,6 +15,7 @@ void RealtimeFFTComponent::setup() {
     return;
   }
   
+  #ifdef USE_ESP_IDF
   // Allocate buffers
   this->input_buffer_ = new float[this->fft_size_];
   this->fft_output_ = new float[this->fft_size_ / 2];
@@ -31,10 +32,12 @@ void RealtimeFFTComponent::setup() {
   for (int i = 0; i < this->fft_size_; i++) {
     this->window_[i] = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (this->fft_size_ - 1)));
   }
+  #endif
   
   ESP_LOGD(TAG, "FFT initialized with sample rate %d Hz and FFT size %d", this->sample_rate_, this->fft_size_);
 }
 
+#ifdef USE_ESP_IDF
 bool RealtimeFFTComponent::init_dsp() {
   esp_err_t ret = esp_dsp_init();
   if (ret != ESP_OK) {
@@ -50,15 +53,19 @@ bool RealtimeFFTComponent::init_dsp() {
   
   return true;
 }
+#endif
 
 void RealtimeFFTComponent::loop() {
   if (this->i2s_audio_ == nullptr) {
     return;
   }
   
+  #ifdef USE_ESP_IDF
   this->process_audio();
+  #endif
 }
 
+#ifdef USE_ESP_IDF
 void RealtimeFFTComponent::process_audio() {
   // Get audio samples from I2S
   size_t bytes_read;
@@ -89,11 +96,14 @@ void RealtimeFFTComponent::process_audio() {
   }
   this->publish_state(max_value);
 }
+#endif
 
 float RealtimeFFTComponent::get_fft_value(int bin) {
+  #ifdef USE_ESP_IDF
   if (bin >= 0 && bin < this->fft_size_ / 2) {
     return this->fft_output_[bin];
   }
+  #endif
   return 0.0f;
 }
 
@@ -105,7 +115,11 @@ float RealtimeFFTComponent::get_frequency(int bin) {
 }
 
 float *RealtimeFFTComponent::get_spectrum_data() {
+  #ifdef USE_ESP_IDF
   return this->fft_output_;
+  #else
+  return nullptr;
+  #endif
 }
 
 }  // namespace realtime_fft
