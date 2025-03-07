@@ -1,37 +1,31 @@
-# External Components Initialization
-# This module provides initialization and configuration for external FFT components
+import esphome.codegen as cg
+import esphome.config_validation as cv
+from esphome.components import sensor
+from esphome.const import CONF_ID
 
-class RealtimeFFTComponent:
-    """
-    Base class for Realtime FFT processing and visualization
-    """
-    def __init__(self, sample_rate=44100, fft_size=1024):
-        self.sample_rate = sample_rate
-        self.fft_size = fft_size
-        self.frequency_bins = None
-        self.spectrum_data = None
+# Définir les constantes pour le composant
+CONF_SAMPLE_RATE = "sample_rate"
+CONF_FFT_SIZE = "fft_size"
+CONF_AUDIO_PIN = "audio_pin"
 
-    def initialize(self):
-        """
-        Initialize FFT processing components
-        """
-        raise NotImplementedError("Subclasses must implement initialization")
+# Namespace pour le composant
+realtime_fft_ns = cg.esphome_ns.namespace("realtime_fft")
+RealtimeFFTComponent = realtime_fft_ns.class_("RealtimeFFTComponent", cg.Component, sensor.Sensor)
 
-    def process_audio(self, audio_data):
-        """
-        Process audio data and perform FFT
-        """
-        raise NotImplementedError("Subclasses must implement audio processing")
+# Configuration schema
+CONFIG_SCHEMA = sensor.sensor_schema().extend({
+    cv.GenerateID(): cv.declare_id(RealtimeFFTComponent),
+    cv.Required(CONF_AUDIO_PIN): cv.pin,
+    cv.Optional(CONF_SAMPLE_RATE, default=44100): cv.positive_int,
+    cv.Optional(CONF_FFT_SIZE, default=1024): cv.positive_int,
+})
 
-    def get_frequency_spectrum(self):
-        """
-        Retrieve processed frequency spectrum
-        """
-        return self.spectrum_data
-
-    @staticmethod
-    def calculate_frequency_range(sample_rate, fft_size):
-        """
-        Calculate frequency bins for FFT analysis
-        """
-        return [k * sample_rate / fft_size for k in range(fft_size // 2)]
+# Fonction pour générer le code C++
+async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    await sensor.register_sensor(var, config)
+    
+    cg.add(var.set_sample_rate(config[CONF_SAMPLE_RATE]))
+    cg.add(var.set_fft_size(config[CONF_FFT_SIZE]))
+    cg.add(var.set_audio_pin(config[CONF_AUDIO_PIN]))
