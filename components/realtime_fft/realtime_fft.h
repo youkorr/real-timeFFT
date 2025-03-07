@@ -3,7 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/i2s_audio/i2s_audio.h"
-#include "arduinoFFT.h"
+#include "esp_dsp.h"
 
 namespace esphome {
 namespace realtime_fft {
