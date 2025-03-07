@@ -3,11 +3,8 @@
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/i2s_audio/i2s_audio.h"
-
-#ifdef USE_ESP_IDF
 #include "driver/i2s.h"
-#include "esp_dsp.h"
-#endif
+#include <cmath>
 
 namespace esphome {
 namespace realtime_fft {
@@ -32,16 +29,15 @@ class RealtimeFFTComponent : public Component, public sensor::Sensor {
   int fft_size_{1024};
   i2s_audio::I2SAudioComponent *i2s_audio_{nullptr};
   
-  #ifdef USE_ESP_IDF
   float *input_buffer_{nullptr};
   float *fft_output_{nullptr};
   float *window_{nullptr};
-  dsp_complex_t *fft_data_{nullptr};
-  esp_dsp_iface_handle_t dsp_;
+  float *real_{nullptr};
+  float *imag_{nullptr};
   
-  bool init_dsp();
   void process_audio();
-  #endif
+  void fft(float *real, float *imag, int n);
+  void apply_window();
 };
 }  // namespace realtime_fft
 }  // namespace esphome
