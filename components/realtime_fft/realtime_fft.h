@@ -4,7 +4,7 @@
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/i2s_audio/i2s_audio.h"
 #include "driver/i2s.h"
-#include "esp_dsp.h"
+
 
 namespace esphome {
 namespace realtime_fft {
