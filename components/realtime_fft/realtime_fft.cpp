@@ -1,7 +1,7 @@
 #include "realtime_fft.h"
 #include "esphome/core/log.h"
 #include "esphome/core/hal.h"
-#include "arduinoFFT.h"
+
 
 namespace esphome {
 namespace realtime_fft {
