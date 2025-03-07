@@ -1,103 +1,85 @@
-#include "realtimeFFT.h"
-#include <algorithm>
-#include <numeric>
+#include "realtime_fft.h"
+#include "esphome/core/log.h"
+#include "esphome/core/hal.h"
+#include "arduinoFFT.h"
 
-RealtimeFFT::RealtimeFFT(int fftSize) : 
-    m_fftSize(fftSize),
-    m_complexBuffer(fftSize),
-    m_magnitudeSpectrum(fftSize / 2),
-    m_frequencyBins(fftSize / 2) {
+namespace esphome {
+namespace realtime_fft {
+
+static const char *TAG = "realtime_fft";
+
+void RealtimeFFTComponent::setup() {
+  ESP_LOGD(TAG, "Setting up Realtime FFT...");
+  
+  // Allouer la mémoire pour les tableaux FFT
+  this->real_values_ = new double[this->fft_size_];
+  this->imag_values_ = new double[this->fft_size_];
+  this->spectrum_data_ = new float[this->fft_size_ / 2];
+  
+  // Initialiser l'objet FFT
+  this->fft_ = new ArduinoFFT<double>(this->real_values_, this->imag_values_, this->fft_size_, this->sample_rate_);
+  
+  // Calculer les fréquences correspondantes
+  this->frequency_bins_ = new float[this->fft_size_ / 2];
+  for (int i = 0; i < this->fft_size_ / 2; i++) {
+    this->frequency_bins_[i] = i * this->sample_rate_ / this->fft_size_;
+  }
+  
+  ESP_LOGD(TAG, "FFT initialized with sample rate %d Hz and FFT size %d", this->sample_rate_, this->fft_size_);
+}
+
+void RealtimeFFTComponent::loop() {
+  // Récupérer les échantillons audio
+  for (int i = 0; i < this->fft_size_; i++) {
+    // Lire la valeur analogique et la normaliser entre -1 et 1
+    this->real_values_[i] = (analogRead(this->audio_pin_) - 2047.5) / 2047.5;
+    this->imag_values_[i] = 0;
     
-    // Pre-compute frequency bins
-    for (int k = 0; k < m_fftSize / 2; ++k) {
-        m_frequencyBins[k] = k * (44100.0 / m_fftSize);
+    // Petit délai pour atteindre le taux d'échantillonnage souhaité
+    delayMicroseconds(1000000 / this->sample_rate_);
+  }
+  
+  // Appliquer la fenêtre de Hanning pour réduire les fuites spectrales
+  this->fft_->windowing(FFT_WIN_TYP_HANNING, FFT_FORWARD);
+  
+  // Calculer la FFT
+  this->fft_->compute(FFT_FORWARD);
+  
+  // Calculer les magnitudes
+  this->fft_->complexToMagnitude();
+  
+  // Copier les résultats dans notre tableau de spectre
+  for (int i = 0; i < this->fft_size_ / 2; i++) {
+    this->spectrum_data_[i] = this->real_values_[i];
+  }
+  
+  // Publier la valeur maximale comme valeur du capteur
+  float max_value = 0;
+  for (int i = 0; i < this->fft_size_ / 2; i++) {
+    if (this->spectrum_data_[i] > max_value) {
+      max_value = this->spectrum_data_[i];
     }
+  }
+  this->publish_state(max_value);
 }
 
-void RealtimeFFT::processAudioData(const std::vector<float>& audioInput) {
-    // Ensure input matches FFT size
-    if (audioInput.size() != m_fftSize) {
-        throw std::runtime_error("Input size does not match FFT size");
-    }
-
-    // Convert input to complex numbers
-    for (int i = 0; i < m_fftSize; ++i) {
-        m_complexBuffer[i] = std::complex<float>(audioInput[i], 0.0f);
-    }
-
-    // Apply Hann window
-    for (int i = 0; i < m_fftSize; ++i) {
-        float window = 0.5f * (1.0f - std::cos(2.0f * M_PI * i / (m_fftSize - 1)));
-        m_complexBuffer[i] *= window;
-    }
-
-    // Perform FFT
-    cooleyTukeyFFT(m_complexBuffer);
-
-    // Compute magnitude spectrum (first half)
-    for (int k = 0; k < m_fftSize / 2; ++k) {
-        m_magnitudeSpectrum[k] = std::abs(m_complexBuffer[k]);
-    }
+float RealtimeFFTComponent::get_fft_value(int bin) {
+  if (bin >= 0 && bin < this->fft_size_ / 2) {
+    return this->spectrum_data_[bin];
+  }
+  return 0.0f;
 }
 
-void RealtimeFFT::cooleyTukeyFFT(std::vector<std::complex<float>>& data) {
-    bitReversalPermutation(data);
-
-    // Butterfly operations
-    for (int s = 1; s <= std::log2(m_fftSize); ++s) {
-        int m = 1 << s;
-        std::complex<float> wm = std::polar(1.0f, -2.0f * M_PI / m);
-
-        for (int k = 0; k < m_fftSize; k += m) {
-            std::complex<float> w = 1.0f;
-            for (int j = 0; j < m/2; ++j) {
-                std::complex<float> t = w * data[k + j + m/2];
-                std::complex<float> u = data[k + j];
-                data[k + j] = u + t;
-                data[k + j + m/2] = u - t;
-                w *= wm;
-            }
-        }
-    }
+float RealtimeFFTComponent::get_frequency(int bin) {
+  if (bin >= 0 && bin < this->fft_size_ / 2) {
+    return this->frequency_bins_[bin];
+  }
+  return 0.0f;
 }
 
-void RealtimeFFT::bitReversalPermutation(std::vector<std::complex<float>>& data) {
-    for (int i = 0; i < m_fftSize; ++i) {
-        int rev = 0;
-        for (int j = 0; j < std::log2(m_fftSize); ++j) {
-            rev = (rev << 1) | (i >> j & 1);
-        }
-        if (rev > i) {
-            std::swap(data[i], data[rev]);
-        }
-    }
+float *RealtimeFFTComponent::get_spectrum_data() {
+  return this->spectrum_data_;
 }
 
-std::vector<float> RealtimeFFT::getMagnitudeSpectrum() const {
-    return m_magnitudeSpectrum;
-}
-
-std::vector<float> RealtimeFFT::getFrequencyBins() const {
-    return m_frequencyBins;
-}
-
-std::vector<float> RealtimeFFT::findPeakFrequencies(int numPeaks) const {
-    std::vector<std::pair<float, float>> frequencyMagnitudes;
-    
-    // Create pairs of (frequency, magnitude)
-    for (size_t i = 0; i < m_frequencyBins.size(); ++i) {
-        frequencyMagnitudes.push_back({m_frequencyBins[i], m_magnitudeSpectrum[i]});
-    }
-
-    // Sort by magnitude in descending order
-    std::sort(frequencyMagnitudes.begin(), frequencyMagnitudes.end(), 
-        [](const auto& a, const auto& b) { return a.second > b.second; });
-
-    // Extract top frequencies
-    std::vector<float> peakFrequencies;
-    for (int i = 0; i < std::min(numPeaks, static_cast<int>(frequencyMagnitudes.size())); ++i) {
-        peakFrequencies.push_back(frequencyMagnitudes[i].first);
-    }
-
-    return peakFrequencies;
-}
+}  // namespace realtime_fft
+}  // namespace esphome
